@@ -8,7 +8,7 @@ use std::thread;
 use std::thread::JoinHandle;
 // use std::time::Duration;
 
-const SEC_IPS: [&'static str; 1] = ["sec1"];
+const SEC_IPS: [&'static str; 1] = ["http://sec1:8080"];
 
 fn distribute_messages(line: String, clone: Arc<Mutex<Vec<String>>>) {
     let mut v = clone.lock().unwrap();
@@ -21,7 +21,7 @@ fn distribute_messages(line: String, clone: Arc<Mutex<Vec<String>>>) {
     let client = reqwest::blocking::Client::new();
     for ip in SEC_IPS {
         let _res = client.post(ip).json(&map).send();
-        // println!("Response is: {:?}", _res);
+        println!("Response is: {:?}", _res.ok().unwrap());
     }
     v.push(line);
 }
