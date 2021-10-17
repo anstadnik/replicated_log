@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-// const SEC_IPS: [&'static str; 2] = ["http://sec1:5001", "http://sec2:5002"];
+const SEC_IPS: [&'static str; 2] = ["http://sec1:5001", "http://sec2:5002"];
 // const SEC_IPS: [&'static str; 2] = ["http://sec1:5001/msgs", "http://sec2:5002/msgs"];
 // const SEC_IPS: [&'static str; 2] = ["http://localhost:5000/msgs", "http://localhost:5000/msgs"];
-const SEC_IPS: [&'static str; 2] = ["http://localhost:5001", "http://localhost:5002"];
+// const SEC_IPS: [&'static str; 2] = ["http://localhost:5001", "http://localhost:5002"];
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct MessageJsonProxy {
