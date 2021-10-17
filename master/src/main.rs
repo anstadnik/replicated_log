@@ -1,111 +1,127 @@
+use warp::{http, Filter};
+use std::convert::Infallible;
+use snafu::{ensure, Snafu};
+// use futures::{stream, StreamExt}; // 0.3.5
+
+use parking_lot::RwLock;
+use reqwest;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
-use std::io::{self, BufRead, BufReader};
-use std::net::TcpListener;
-use std::net::TcpStream;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::thread::JoinHandle;
-// use std::time::Duration;
+use std::sync::Arc;
 
-const SEC_IPS: [&'static str; 1] = ["http://sec1:8080"];
+// const SEC_IPS: [&'static str; 2] = ["http://sec1:5000/msgs", "http://sec2:5001/msgs"];
+const SEC_IPS: [&'static str; 2] = ["http://localhost:5000", "http://localhost:5000"];
 
-fn distribute_messages(line: String, clone: Arc<Mutex<Vec<String>>>) {
-    let mut v = clone.lock().unwrap();
-    // thread::sleep(Duration::from_secs(1));
-    println!("You entered: {};", &line);
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct MessageJsonProxy {
+    msg: String,
+}
 
+#[derive(Clone)]
+struct Messages {
+    messages: Arc<RwLock<Vec<String>>>,
+}
+
+impl Messages {
+    fn new() -> Self {
+        Messages {
+            messages: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+}
+
+/* // A normal error type, created by SNAFU
+#[derive(Debug, Snafu)]
+#[snafu(display("I hate rust: {}", value))]
+struct CustomError {
+    value: i32,
+}
+
+// We need a custom type to later extract from the `Rejection`. In
+// this case, we can reuse the error type itself.
+impl warp::reject::Reject for CustomError {}
+
+// To allow using `?`, we implement a conversion from our error to
+// `Rejection`
+impl From<CustomError> for warp::Rejection {
+    fn from(other: CustomError) -> Self {
+        warp::reject::custom(other)
+    }
+} */
+
+/* impl From<reqwest::error::Error> for warp::reject::Rejection {
+    fn from(other: CustomError) -> Self {
+        warp::reject::custom(other)
+    }
+} */
+
+async fn add_message(
+    item: MessageJsonProxy,
+    messages: Messages,
+) -> Result<impl warp::Reply, warp::Rejection> {
     let mut map = HashMap::new();
-    map.insert("mes", &line);
+    map.insert("mes", &item.msg);
 
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::Client::new();
     for ip in SEC_IPS {
-        let _res = client.post(ip).json(&map).send();
-        match _res.ok() {
-            Some(l) => println!("Response is: {:?}", l),
-            None => println!("No response!"),
-        }
+        println!("SENDING to {}", ip);
+        client.post(ip).json(&map).send().await;
     }
-    v.push(line);
+
+    messages.messages.write().push(item.msg);
+
+    println!("{:?}", messages.messages);
+
+    Ok(warp::reply::with_status(
+        "Added message to the list",
+        http::StatusCode::CREATED,
+    ))
 }
 
-fn handle_connection(
-    stream: TcpStream,
-    threads: &mut Vec<JoinHandle<()>>,
-    v: &Arc<Mutex<Vec<String>>>,
-) -> io::Result<()> {
-    let mut line = String::new();
-    let mut reader = BufReader::new(stream);
-    reader.read_line(&mut line)?;
-    let get = "GET / HTTP/1.1".to_string();
-    let post = "POST / HTTP/1.1".to_string();
+// async fn get_messages(messages: Messages) -> Result<impl warp::Reply, warp::Rejection> {
+async fn get_messages(messages: Messages) -> Result<impl warp::Reply, warp::Rejection> {
+    let mut result = Vec::new();
+    let r = messages.messages.read();
 
-    if line.starts_with(&get) {
-        println!("{:?}", v);
-    } else if line.starts_with(&post) {
-        reader.read_line(&mut line)?;
-        threads.push(thread::spawn({
-            let line = line.trim().to_string();
-            let clone = Arc::clone(&v);
-            || distribute_messages(line, clone)
-        }));
-    } else {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "Unknown request",
-        ));
+    let client = reqwest::Client::new();
+    for ip in SEC_IPS {
+        println!("SENDING to {}", ip);
+        let ret = client.get(ip).send().await;
     }
-    Ok(())
+
+    println!("{:?}", messages.messages);
+
+    for mes in r.iter() {
+        result.push(mes);
+    }
+
+    Ok(warp::reply::json(&result))
 }
 
-fn tcp(threads: &mut Vec<JoinHandle<()>>, v: &Arc<Mutex<Vec<String>>>) {
-    let listener = TcpListener::bind("0.0.0.0:7878").unwrap();
-
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-        match handle_connection(stream, threads, v) {
-            Err(_) => println!("Unknown connection!"),
-            _ => (),
-        }
-    }
+fn json_body() -> impl Filter<Extract = (MessageJsonProxy,), Error = warp::Rejection> + Clone {
+    // When accepting a body, we want a JSON body
+    // (and to reject huge payloads)...
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
 }
 
-fn console(threads: &mut Vec<JoinHandle<()>>, v: &Arc<Mutex<Vec<String>>>) {
-    let stdin = io::stdin();
-    let mut lines = stdin.lock().lines();
+#[tokio::main]
+async fn main() {
+    let messages = Messages::new();
+    let messages_filter = warp::any().map(move || messages.clone());
 
-    while let Some(line) = lines.next() {
-        match line.unwrap().as_str() {
-            "print" => println!("{:?}", v),
-            l => threads.push(thread::spawn({
-                let clone = Arc::clone(&v);
-                let line = l.to_string();
-                || distribute_messages(line, clone)
-            })),
-        }
-    }
-}
+    // let client = reqwest::Client::new();
+    let add_items = warp::post()
+        .and(json_body())
+        // .and()
+        .and(messages_filter.clone())
+        .and_then(add_message);
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
 
-    let v = Arc::new(Mutex::new(Vec::new()));
-    let mut threads = Vec::new();
+    let get_items = warp::get()
+        .and(messages_filter.clone())
+        .and_then(get_messages);
 
-    if args.len() != 2 {
-        println!("Please specify io type: {{\"console\", \"tcp\"}}");
-        return;
-    } else if args[1] == "console" {
-        console(&mut threads, &v);
-    } else if args[1] == "tcp" {
-        tcp(&mut threads, &v);
-    } else {
-        return;
-    }
+    let routes = add_items.or(get_items);
 
-    println!("{:?}", v);
-    for t in threads {
-        t.join().unwrap();
-    }
-    println!("{:?}", v);
+    warp::serve(routes).run(([0, 0, 0, 0], 7878)).await;
 }

@@ -5,7 +5,7 @@ services:
     build: master/
     volumes:
       - ./master:/master
-    command: cargo run --manifest-path /master/Cargo.toml tcp
+    command: cargo run --manifest-path /master/Cargo.toml
     ports:
       - 7878:7878
 
@@ -17,10 +17,6 @@ services:
   sec2:
     build: sec/
     command: python ./secondary.py --port 5002
-
-    # # The keyword 'network_mode' is used to define the network type.
-    # # Here we define that the container can access to the 'localhost' of the computer.
-    # network_mode: host
 
     # The keyword'depends_on' allows you to define whether the service
     # should wait until other services are ready before launching.
