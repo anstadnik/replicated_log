@@ -9,13 +9,17 @@ app = Flask('Secondary')
 
 MESSAGES_LIST = []
 
+@app.before_request
+def log_request():
+    app.logger.debug("Request Headers %s", request.headers)
+    return None
 
 @app.route("/", methods=['GET'])
-def hello():
-    return 'Welcome on server!'
+# def hello():
+#     return 'Welcome on server!'
 
 
-@app.route("/msgs", methods=['GET', 'POST'])
+# @app.route("/msgs", methods=['GET', 'POST'])
 def msgs_listener():
     if request.method in ['DELETE', 'PUT']:
         return jsonify(isError=True,
@@ -23,8 +27,13 @@ def msgs_listener():
                        statusCode=400), 400
     time.sleep(random.randint(1, 5))
     if request.method == 'POST':
-        data = json.loads(request.json)
+        if request.json is None:
+            print("Wrong request")
+            return jsonify(isError=True,
+                           message='Use JSON please')
+        data = request.json
         if 'msg' in data:
+            print(f'added message {data["msg"]}')
             MESSAGES_LIST.append(data['msg'])
             return jsonify(isError=False,
                            message="Success",
@@ -35,12 +44,14 @@ def msgs_listener():
                            message='Use json key "msg" for POST request.')
 
     if request.method == 'GET':
+        print(f"Messages: {MESSAGES_LIST}")
         return jsonify(isError=False,
                        message=MESSAGES_LIST,
                        statusCode=200), 200
 
 
-def main(host='0.0.0.0', port=8080, debug=True, threaded=False):
+# def main(host='0.0.0.0', port=8080, debug=True, threaded=False):
+def main(host='', port=8080, debug=True, threaded=False):
     app.run(host=host, port=port, debug=debug, threaded=threaded)
 
 

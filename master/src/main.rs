@@ -1,6 +1,4 @@
 use warp::{http, Filter};
-use std::convert::Infallible;
-use snafu::{ensure, Snafu};
 // use futures::{stream, StreamExt}; // 0.3.5
 
 use parking_lot::RwLock;
@@ -9,8 +7,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-// const SEC_IPS: [&'static str; 2] = ["http://sec1:5000/msgs", "http://sec2:5001/msgs"];
-const SEC_IPS: [&'static str; 2] = ["http://localhost:5000", "http://localhost:5000"];
+// const SEC_IPS: [&'static str; 2] = ["http://sec1:5001", "http://sec2:5002"];
+// const SEC_IPS: [&'static str; 2] = ["http://sec1:5001/msgs", "http://sec2:5002/msgs"];
+// const SEC_IPS: [&'static str; 2] = ["http://localhost:5000/msgs", "http://localhost:5000/msgs"];
+const SEC_IPS: [&'static str; 2] = ["http://localhost:5001", "http://localhost:5002"];
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct MessageJsonProxy {
@@ -30,37 +30,13 @@ impl Messages {
     }
 }
 
-/* // A normal error type, created by SNAFU
-#[derive(Debug, Snafu)]
-#[snafu(display("I hate rust: {}", value))]
-struct CustomError {
-    value: i32,
-}
-
-// We need a custom type to later extract from the `Rejection`. In
-// this case, we can reuse the error type itself.
-impl warp::reject::Reject for CustomError {}
-
-// To allow using `?`, we implement a conversion from our error to
-// `Rejection`
-impl From<CustomError> for warp::Rejection {
-    fn from(other: CustomError) -> Self {
-        warp::reject::custom(other)
-    }
-} */
-
-/* impl From<reqwest::error::Error> for warp::reject::Rejection {
-    fn from(other: CustomError) -> Self {
-        warp::reject::custom(other)
-    }
-} */
 
 async fn add_message(
     item: MessageJsonProxy,
     messages: Messages,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let mut map = HashMap::new();
-    map.insert("mes", &item.msg);
+    map.insert("msg", &item.msg);
 
     let client = reqwest::Client::new();
     for ip in SEC_IPS {
@@ -80,22 +56,18 @@ async fn add_message(
 
 // async fn get_messages(messages: Messages) -> Result<impl warp::Reply, warp::Rejection> {
 async fn get_messages(messages: Messages) -> Result<impl warp::Reply, warp::Rejection> {
-    let mut result = Vec::new();
-    let r = messages.messages.read();
-
     let client = reqwest::Client::new();
     for ip in SEC_IPS {
         println!("SENDING to {}", ip);
-        let ret = client.get(ip).send().await;
+        client.get(ip).send().await;
     }
 
     println!("{:?}", messages.messages);
 
-    for mes in r.iter() {
-        result.push(mes);
-    }
-
-    Ok(warp::reply::json(&result))
+    Ok(warp::reply::with_status(
+        "Printed messages to the command line",
+        http::StatusCode::CREATED,
+    ))
 }
 
 fn json_body() -> impl Filter<Extract = (MessageJsonProxy,), Error = warp::Rejection> + Clone {
