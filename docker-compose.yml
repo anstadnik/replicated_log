@@ -8,9 +8,15 @@ services:
     command: cargo run --manifest-path /master/Cargo.toml tcp
     ports:
       - 7878:7878
+
+
   sec1:
     build: sec/
-    command: python ./sec.py
+    command: python ./secondary.py --port 5001
+
+  sec2:
+    build: sec/
+    command: python ./secondary.py --port 5002
 
     # # The keyword 'network_mode' is used to define the network type.
     # # Here we define that the container can access to the 'localhost' of the computer.
