@@ -15,6 +15,7 @@ const SEC_IPS: [&'static str; 2] = ["http://sec1:5001", "http://sec2:5002"];
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct MessageJsonProxy {
     msg: String,
+    m: usize
 }
 
 #[derive(Clone)]
@@ -36,17 +37,33 @@ async fn add_message(
     messages: Messages,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let mut map = HashMap::new();
-    map.insert("msg", &item.msg);
+    map.insert("msg", item.msg);
+    map.insert("m", item.m.to_string());
 
     let client = reqwest::Client::new();
+    let mut counter = 0;
     for ip in SEC_IPS {
+        if counter >= item.m {
+            break;
+        }
+        counter += 1;
         println!("SENDING to {}", ip);
         client.post(ip).json(&map).send().await;
     }
 
-    messages.messages.write().push(item.msg);
+    messages.messages.write().push(map.get("msg").unwrap().to_owned());
 
     println!("{:?}", messages.messages);
+
+    let mut i = 0;
+    for ip in SEC_IPS {
+        if i < counter {
+            i += 1;
+            continue;
+        }
+        println!("SENDING to {}", ip);
+        client.post(ip).json(&map).send().await;
+    }
 
     Ok(warp::reply::with_status(
         "Added message to the list",

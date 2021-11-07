@@ -13,7 +13,7 @@ services:
   sec1:
     build: sec/
     # command: python ./secondary.py --port 5001
-    command: python ./sec.py 5001
+    command: python ./sec1.py 5001
     # ports:
     #   - 5001:5001
 
@@ -21,7 +21,7 @@ services:
   sec2:
     build: sec/
     # command: python ./secondary.py --port 5002
-    command: python ./sec.py 5002
+    command: python ./sec5.py 5002
 
   #   # The keyword'depends_on' allows you to define whether the service
   #   # should wait until other services are ready before launching.
