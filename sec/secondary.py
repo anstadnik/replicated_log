@@ -1,37 +1,27 @@
-import json
+from flask import Flask,request, jsonify
 import time
 import random
-from flask import Flask, request, jsonify
-import sys
-import argparse
+import json
 
-app = Flask('Secondary')
+app = Flask(__name__)
 
 MESSAGES_LIST = []
 
-@app.before_request
-def log_request():
-    app.logger.debug("Request Headers %s", request.headers)
-    return None
-
-@app.route("/", methods=['GET'])
-# def hello():
-#     return 'Welcome on server!'
-
-
-# @app.route("/msgs", methods=['GET', 'POST'])
-def msgs_listener():
+@app.route("/",methods=["GET","POST"])
+async def msgs_listener():
     if request.method in ['DELETE', 'PUT']:
         return jsonify(isError=True,
                        message=f'Use GET or POST methods.',
                        statusCode=400), 400
-    time.sleep(random.randint(1, 5))
+    time.sleep(random.randint(1, 10))
+
     if request.method == 'POST':
         if request.json is None:
             print("Wrong request")
             return jsonify(isError=True,
                            message='Use JSON please')
-        data = request.json
+        data = json.loads(request.json)
+        print(data)
         if 'msg' in data:
             print(f'added message {data["msg"]}')
             MESSAGES_LIST.append(data['msg'])
@@ -50,17 +40,6 @@ def msgs_listener():
                        statusCode=200), 200
 
 
-# def main(host='0.0.0.0', port=8080, debug=True, threaded=False):
-def main(host='', port=8080, debug=True, threaded=False):
-    app.run(host=host, port=port, debug=debug, threaded=threaded)
 
-
-if __name__ == '__main__':
-    # main(debug=False)
-    parser = argparse.ArgumentParser(description='Params for server.')
-    parser.add_argument('-host', '--host', type=str, default=None)
-    parser.add_argument('-p', '--port', type=int, default=None)
-    parser.add_argument('-d', '--debug', type=bool, default=None)
-    parser.add_argument('-th', '--threaded', type=bool, default=None)
-    args = parser.parse_args()
-    main(host=args.host, port=args.port, debug=args.debug, threaded=args.threaded)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=4567, debug=False)
