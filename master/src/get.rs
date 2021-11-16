@@ -1,12 +1,12 @@
+use futures::future::join_all;
+
 use crate::{Messages, SHOW_MESSAGES_ON_ALL_HOSTS};
 
 pub async fn get_messages(messages: Messages, sec_ips: [&str; 2]) -> String {
     if SHOW_MESSAGES_ON_ALL_HOSTS {
         let client = reqwest::Client::new();
-        for ip in sec_ips {
-            println!("SENDING to {}", ip);
-            client.get(ip).send().await;
-        }
+        let responces: Vec<_> = sec_ips.iter().map(|ip| client.get(*ip).send()).collect();
+        join_all(responces).await;
     }
 
     println!("Messages: {:?}", messages.messages.lock().unwrap());

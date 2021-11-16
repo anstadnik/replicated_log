@@ -28,7 +28,6 @@ async def msgs_listener():
             return jsonify(isError=True,
                            message='Use JSON please')
         data = request.json
-        print(data)
         if 'msg' in data:
             print(f'added message {data["msg"]}')
             MESSAGES_LIST.append(data['msg'])

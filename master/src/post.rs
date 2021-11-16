@@ -20,7 +20,7 @@ pub async fn add_message(item: MessageJsonProxy, messages: Messages, sec_ips: [&
         .iter()
         .map(|ip| client.post(*ip).json(&map).send())
         .collect();
-    while !responces.is_empty() && required_n > 0{
+    while !responces.is_empty() && required_n > 0 {
         let (_val, _index, remaining) = select_all(responces).await;
         responces = remaining;
         required_n -= 1;
