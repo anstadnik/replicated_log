@@ -1,7 +1,7 @@
 use master::{add_message, get_messages, Messages};
 use warp::Filter;
 
-const SEC_IPS: [&'static str; 2] = ["http://sec1:5001", "http://sec2:5002"];
+const SEC_IPS: [&'static str; 2] = ["http://secondary_1:5000", "http://secondary_2:5000"];
 
 #[tokio::main]
 async fn main() {

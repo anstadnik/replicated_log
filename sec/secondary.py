@@ -2,6 +2,9 @@ from flask import Flask,request, jsonify
 import time
 import random
 import json
+import os
+
+
 
 app = Flask(__name__)
 
@@ -13,14 +16,18 @@ async def msgs_listener():
         return jsonify(isError=True,
                        message=f'Use GET or POST methods.',
                        statusCode=400), 400
-    time.sleep(random.randint(1, 10))
+    # time.sleep(random.randint(1, 10))
+    try:
+        time.sleep(int(os.environ["SLEEP_TIMEOUT"]))
+    except (KeyError, ValueError):
+        time.sleep(random.randint(1, 10))
 
     if request.method == 'POST':
         if request.json is None:
             print("Wrong request")
             return jsonify(isError=True,
                            message='Use JSON please')
-        data = json.loads(request.json)
+        data = request.json
         print(data)
         if 'msg' in data:
             print(f'added message {data["msg"]}')

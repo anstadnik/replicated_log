@@ -10,12 +10,26 @@ services:
       - 7878:7878
 
 
-  secondary:
+  secondary_1:
     build: sec/
     volumes:
       - ./sec:/sec
     ports:
-      - "3000-3020:3333"
+      - "5001:5000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SLEEP_TIMEOUT=1
+
+
+  secondary_2:
+    build: sec/
+    volumes:
+      - ./sec:/sec
+    ports:
+      - "5002:5000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SLEEP_TIMEOUT=1
 
   #   # The keyword'depends_on' allows you to define whether the service
   #   # should wait until other services are ready before launching.
