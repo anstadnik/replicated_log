@@ -4,8 +4,8 @@ use master::{add_message, get_messages, sec::Sec, SecVec};
 use tokio::sync::Mutex;
 use warp::Filter;
 
-// const SEC_URLS: [&'static str; 2] = [Sec::new("http://secondary_1:5000"), Sec::new("http://secondary_2:5000")];
-const SEC_URLS: [&'static str; 2] = ["http://localhost:5001", "http://localhost:5002"];
+const SEC_URLS: [&'static str; 2] = [Sec::new("http://secondary_1:5000"), Sec::new("http://secondary_2:5000")];
+// const SEC_URLS: [&'static str; 2] = ["http://localhost:5001", "http://localhost:5002"];
 
 #[tokio::main]
 async fn main() {
