@@ -45,8 +45,15 @@ async def msgs_listener():
 
     if request.method == "GET":
         print(f"Messages: {MESSAGES_LIST}")
+        # TODO: add deduplication & order sort here
         return jsonify(isError=False, message=MESSAGES_LIST, statusCode=200), 200
 
+
+@app.route("/health", methods=["GET", "POST"])
+async def heath():
+    if request.method == 'GET':
+        print(f"Health checker.")
+        return jsonify(isError=False, message='Healthy', statusCode=200), 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=4567, debug=False)
