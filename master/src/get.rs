@@ -1,19 +1,28 @@
-use futures::future::join_all;
+use std::collections::HashMap;
 
-use crate::{Messages, SHOW_MESSAGES_ON_ALL_HOSTS};
+use colour::{cyan_ln, green_ln};
+use tokio::spawn;
 
-pub async fn get_messages(messages: Messages, sec_ips: [&str; 2]) -> String {
-    if SHOW_MESSAGES_ON_ALL_HOSTS {
-        let client = reqwest::Client::new();
-        let responces: Vec<_> = sec_ips.iter().map(|ip| client.get(*ip).send()).collect();
-        join_all(responces).await;
+use crate::{MsgVec, VERBOSE};
+
+async fn send_get(ip: &str) -> Result<reqwest::Response, reqwest::Error> {
+    let client = reqwest::Client::new();
+    let ret = client.get(ip).send().await;
+    green_ln!("Sent GET to {}", ip);
+    ret
+}
+
+pub async fn get_messages(msgs: MsgVec, sec_ips: [&'static str; 2]) -> warp::reply::Json {
+    if VERBOSE {
+        for ip in sec_ips {
+            spawn(send_get(ip));
+        }
+        cyan_ln!("Messages: {:?}", msgs.lock().unwrap());
     }
 
-    println!("Messages: {:?}", messages.messages.lock().unwrap());
-
-    "Printed messages to the command line".to_string()
-    /* warp::reply::with_status(
-        "Printed messages to the command line",
-        http::StatusCode::CREATED,
-    ) */
+    let ret: HashMap<&str, Vec<String>> = [("m", msgs.lock().unwrap().clone())]
+        .iter()
+        .cloned()
+        .collect();
+    warp::reply::json(&ret)
 }

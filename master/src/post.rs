@@ -1,41 +1,58 @@
-use futures::future::{join_all, select_all};
+use colour::{green_ln, magenta_ln};
+use futures::{future::select_all, Future, FutureExt};
+use tokio::spawn;
 
-pub use crate::{MessageJsonProxy, Messages};
+pub use crate::MsgJsonProxy;
+use crate::{MsgVec, VERBOSE};
 use std::collections::HashMap;
 
-pub async fn add_message(item: MessageJsonProxy, messages: Messages, sec_ips: [&str; 2]) -> String {
-    let map: HashMap<&str, String> = [("msg", item.msg), ("m", item.m.to_string())]
-        .iter()
-        .cloned()
-        .collect();
+type RecResult = Result<reqwest::Response, reqwest::Error>;
 
-    println!(
-        "Started sending {}!",
-        map.get("msg").unwrap().to_owned().to_string()
-    );
-
-    let mut required_n = item.m - 1;
-    let client = reqwest::Client::new();
+async fn quorum<'a>(
+    m: usize,
+    map: HashMap<&'a str, String>,
+    sec_ips: [&'static str; 2],
+) -> Vec<std::pin::Pin<Box<dyn Future<Output = RecResult> + Send + 'a>>> {
+    let mut required_n = m - 1;
     let mut responces: Vec<_> = sec_ips
         .iter()
-        .map(|ip| client.post(*ip).json(&map).send())
+        .map(|ip| send_msg(*ip, map.clone()).boxed())
         .collect();
     while !responces.is_empty() && required_n > 0 {
         let (_val, _index, remaining) = select_all(responces).await;
         responces = remaining;
         required_n -= 1;
     }
+    responces
+}
 
-    messages
-        .messages
-        .lock()
-        .unwrap()
-        .push(map.get("msg").unwrap().to_owned().to_string());
+async fn send_msg(ip: &str, map: HashMap<&str, String>) -> RecResult {
+    let client = reqwest::Client::new();
+    let ret = client.post(ip).json(&map).send().await;
+    green_ln!("Sent {} to {}", map.get("msg").unwrap(), ip);
+    ret
+}
 
-    println!("Added a message {:?}", messages.messages);
+pub async fn add_message(inp: MsgJsonProxy, msgs: MsgVec, sec_ips: [&'static str; 2]) -> String {
+    let msg = inp.msg.clone();
+    let map: HashMap<&str, String> = [("msg", msg.clone()), ("m", inp.m.to_string())]
+        .iter()
+        .cloned()
+        .collect();
 
-    join_all(responces).await;
+    if VERBOSE {
+        magenta_ln!("Started sending {}!", msg);
+    }
 
+    let responces = quorum(inp.m, map, sec_ips).await;
+
+    msgs.lock().unwrap().push(msg);
+
+    if VERBOSE {
+        magenta_ln!("Enough secondaries reached, returning");
+    }
+    for task in responces {
+        spawn(task);
+    }
     "Added message to the list".to_string()
-    // TODO: I could add status codes <11-11-21, astadnik> //
 }
