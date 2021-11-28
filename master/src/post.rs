@@ -1,10 +1,10 @@
 use std::pin::Pin;
 
-use colour::magenta_ln;
+use colour::{magenta_ln, red_ln};
 use futures::{future::select_all, Future, FutureExt};
 use tokio::spawn;
 
-use crate::{InpJsonProxy, JsonForSec, MsgVec, SecVec, VERBOSE};
+use crate::{sec::SecStatus, InpJsonProxy, JsonForSec, MsgVec, SecVec, VERBOSE};
 
 type Responces =
     Vec<Pin<Box<dyn Future<Output = Result<reqwest::Response, reqwest::Error>> + Send>>>;
@@ -29,7 +29,20 @@ async fn quorum(m: usize, json_for_sec: JsonForSec, secs: SecVec) -> Responces {
     responces
 }
 
-pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, sec_urls: SecVec) -> String {
+pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, secs: SecVec) -> String {
+    if inp.m < 1 {
+        return "Wrong m".to_string();
+    }
+
+    let mut s = 0;
+    for sec in &*secs {
+        s += (sec.status().await == SecStatus::Healthy) as i32;
+    }
+
+    if inp.m - 1 > s.try_into().unwrap() {
+        red_ln!("Not enough working secondaries, message is abandoned");
+        return "Not enough working secondaries, message is abandoned".to_string();
+    };
     let msg = inp.msg.clone();
 
     if VERBOSE {
@@ -44,7 +57,7 @@ pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, sec_urls: SecVec) -> S
     }
     let json_for_sec = JsonForSec { msg, id };
 
-    let responces = quorum(inp.m, json_for_sec, sec_urls).await;
+    let responces = quorum(inp.m, json_for_sec, secs).await;
 
     if VERBOSE {
         magenta_ln!("Enough secondaries reached, returning");

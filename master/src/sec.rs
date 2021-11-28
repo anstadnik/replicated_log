@@ -51,6 +51,9 @@ impl Sec {
         green_ln!("Sent GET to {}", self.url);
         ret
     }
+    pub async fn status(&self) -> SecStatus {
+        self.status.lock().await.status.clone()
+    }
     pub async fn post(&self, json_for_sec: JsonForSec) -> RecResult {
         if self.status.lock().await.status != SecStatus::Healthy {
             self.wait_for_awailability().await;
