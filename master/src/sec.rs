@@ -104,8 +104,8 @@ impl Sec {
     }
     async fn check_status(&self) -> bool {
         self.client
-            // .get(url.to_string() + "/health")
-            .get(self.url.to_string())
+            .get(self.url.to_string() + "/health")
+            // .get(self.url.to_string())
             .send()
             .await
             .is_ok()
