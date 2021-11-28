@@ -1,35 +1,26 @@
-use colour::{green_ln, magenta_ln, red_ln};
+use std::pin::Pin;
+
+use colour::magenta_ln;
 use futures::{future::select_all, Future, FutureExt};
 use tokio::spawn;
 
-use crate::{MsgVec, VERBOSE};
-use serde::{Deserialize, Serialize};
-use std::{thread::sleep, time::Duration};
+use crate::{InpJsonProxy, JsonForSec, MsgVec, SecVec, VERBOSE};
 
-type RecResult = Result<reqwest::Response, reqwest::Error>;
+type Responces =
+    Vec<Pin<Box<dyn Future<Output = Result<reqwest::Response, reqwest::Error>> + Send>>>;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct InpJsonProxy {
-    pub msg: String,
-    pub m: usize,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-struct JsonForSec {
-    pub msg: String,
-    pub id: usize,
-}
-
-async fn quorum<'a>(
-    m: usize,
-    json_for_sec: JsonForSec,
-    sec_ips: [&'static str; 2],
-) -> Vec<std::pin::Pin<Box<dyn Future<Output = RecResult> + Send + 'a>>> {
+async fn quorum(m: usize, json_for_sec: JsonForSec, secs: SecVec) -> Responces {
     let mut required_n = m - 1;
-    let mut responces: Vec<_> = sec_ips
+
+    let mut responces: Vec<_> = secs
         .iter()
-        .map(|ip| send_msg(*ip, json_for_sec.clone()).boxed())
+        .map(|sec| {
+            let sec_ = sec.clone();
+            let json_for_sec_ = json_for_sec.clone();
+            async move { sec_.post(json_for_sec_).await }.boxed()
+        })
         .collect();
+
     while !responces.is_empty() && required_n > 0 {
         let (_val, _index, remaining) = select_all(responces).await;
         responces = remaining;
@@ -38,19 +29,7 @@ async fn quorum<'a>(
     responces
 }
 
-async fn send_msg(ip: &str, json_for_sec: JsonForSec) -> RecResult {
-    let client = reqwest::Client::new();
-    let mut ret = client.post(ip).json(&json_for_sec).send().await;
-    while let Err(e) = ret {
-        red_ln!("Error while sending POST: {}", e);
-        sleep(Duration::from_secs(5));
-        ret = client.post(ip).json(&json_for_sec).send().await;
-    }
-    green_ln!("Sent {} to {}", json_for_sec.msg, ip);
-    ret
-}
-
-pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, sec_ips: [&'static str; 2]) -> String {
+pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, sec_ips: SecVec) -> String {
     let msg = inp.msg.clone();
 
     if VERBOSE {
