@@ -17,9 +17,9 @@ pub async fn get_messages(msgs: MsgVec, secs: SecVec) -> warp::reply::Json {
             let sec_ = sec.clone();
             spawn(async move { sec_.get().await });
         }
-        cyan_ln!("Messages: {:?}", msgs.lock().unwrap());
+        cyan_ln!("Messages: {:?}", msgs.lock().await);
     }
 
-    let msg = msgs.lock().unwrap().clone();
+    let msg = msgs.lock().await.clone();
     warp::reply::json(&RetJson { msg })
 }

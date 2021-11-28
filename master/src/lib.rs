@@ -6,8 +6,9 @@ pub use get::get_messages;
 pub use post::add_message;
 use sec::Sec;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 const VERBOSE: bool = true;
 

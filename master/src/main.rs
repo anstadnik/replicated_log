@@ -1,18 +1,19 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use master::{add_message, get_messages, sec::Sec, SecVec};
+use tokio::sync::Mutex;
 use warp::Filter;
 
-// const SEC_IPS: [&'static str; 2] = [Sec::new("http://secondary_1:5000"), Sec::new("http://secondary_2:5000")];
-const SEC_IPS: [&'static str; 2] = ["http://localhost:5001", "http://localhost:5002"];
+// const SEC_URLS: [&'static str; 2] = [Sec::new("http://secondary_1:5000"), Sec::new("http://secondary_2:5000")];
+const SEC_URLS: [&'static str; 2] = ["http://localhost:5001", "http://localhost:5002"];
 
 #[tokio::main]
 async fn main() {
     let msgs = Arc::new(Mutex::new(Vec::new()));
     let secs: SecVec = Arc::new(
-        SEC_IPS
+        SEC_URLS
             .into_iter()
-            .map(|ip| Arc::new(Sec::new(ip)))
+            .map(|url| Arc::new(Sec::new(url)))
             .collect(),
     );
 
