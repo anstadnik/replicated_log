@@ -29,7 +29,7 @@ async fn quorum(m: usize, json_for_sec: JsonForSec, secs: SecVec) -> Responces {
     responces
 }
 
-pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, sec_ips: SecVec) -> String {
+pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, sec_urls: SecVec) -> String {
     let msg = inp.msg.clone();
 
     if VERBOSE {
@@ -38,13 +38,13 @@ pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, sec_ips: SecVec) -> St
 
     let id: usize;
     {
-        let mut lock = msgs.lock().unwrap();
+        let mut lock = msgs.lock().await;
         id = lock.len();
         lock.push(msg.clone());
     }
     let json_for_sec = JsonForSec { msg, id };
 
-    let responces = quorum(inp.m, json_for_sec, sec_ips).await;
+    let responces = quorum(inp.m, json_for_sec, sec_urls).await;
 
     if VERBOSE {
         magenta_ln!("Enough secondaries reached, returning");
