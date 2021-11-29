@@ -7,7 +7,7 @@ use futures::{
 };
 use tokio::spawn;
 
-use crate::{sec::SecStatus, InpJsonProxy, JsonForSec, MsgVec, SecVec};
+use crate::{sec::SecStatus, InpJsonProxy, JsonForSec, MsgVec, SecVec, QUORUM};
 
 type Responces =
     Vec<Pin<Box<dyn Future<Output = Result<reqwest::Response, reqwest::Error>> + Send>>>;
@@ -37,18 +37,20 @@ pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, secs: SecVec) -> Strin
         return "Wrong m".to_string();
     }
 
-    let s = join_all(secs.iter().map(|sec| sec.status()))
-        .await
-        .into_iter()
-        .filter(|status| *status == SecStatus::Healthy)
-        .count();
+    if QUORUM {
+        let s = join_all(secs.iter().map(|sec| sec.status()))
+            .await
+            .into_iter()
+            .filter(|status| *status == SecStatus::Healthy)
+            .count();
 
-    magenta_ln!("Found {} healthy secondaries", s);
+        magenta_ln!("Found {} healthy secondaries", s);
 
-    if inp.m - 1 > s.try_into().unwrap() {
-        red_ln!("Not enough working secondaries, message is abandoned");
-        return "Not enough working secondaries, message is abandoned".to_string();
-    };
+        if inp.m - 1 > s.try_into().unwrap() {
+            red_ln!("Not enough working secondaries, message is abandoned");
+            return "Not enough working secondaries, message is abandoned".to_string();
+        };
+    }
     let msg = inp.msg.clone();
 
     magenta_ln!("Started sending {}!", msg);

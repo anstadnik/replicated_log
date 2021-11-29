@@ -24,3 +24,5 @@ pub struct InpJsonProxy {
     msg: String,
     m: usize,
 }
+
+const QUORUM: bool = false;
