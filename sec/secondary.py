@@ -8,14 +8,13 @@ import json
 
 from flask import Flask, jsonify, request
 
-# log = logging.getLogger("werkzeug")
-# log.setLevel(logging.ERROR)
+log = logging.getLogger("werkzeug")
+log.setLevel(logging.ERROR)
 
 
 app = Flask(__name__)
 
 MESSAGES_DICT = {}
-# MESSAGES_LIST = []
 
 @app.route("/", methods=["GET", "POST"])
 async def msgs_listener():
@@ -38,7 +37,6 @@ async def msgs_listener():
             print(f'added message {data["msg"]} with id {data["id"]}')
             # here can be deduplication, check it
             MESSAGES_DICT[int(data['id'])] = data['msg']
-            # MESSAGES_LIST.append(data["msg"])
             return (
                 jsonify(isError=False, message="Success", statusCode=200, data=data),
                 200,
@@ -47,10 +45,8 @@ async def msgs_listener():
             return jsonify(isError=True, message='Use json key "msg" for POST request.')
 
     if request.method == "GET":
-        print(f"Messages: {MESSAGES_DICT}")
         if MESSAGES_DICT == {}:
             return jsonify(isError=False, message=MESSAGES_DICT, statusCode=200), 200
-
         res = {}
         keys = sorted(MESSAGES_DICT.keys())
         shift = keys[0]
