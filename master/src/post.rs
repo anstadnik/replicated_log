@@ -1,10 +1,13 @@
 use std::pin::Pin;
 
 use colour::{magenta_ln, red_ln};
-use futures::{future::select_all, Future, FutureExt};
+use futures::{
+    future::{join_all, select_all},
+    Future, FutureExt,
+};
 use tokio::spawn;
 
-use crate::{sec::SecStatus, InpJsonProxy, JsonForSec, MsgVec, SecVec, VERBOSE};
+use crate::{sec::SecStatus, InpJsonProxy, JsonForSec, MsgVec, SecVec};
 
 type Responces =
     Vec<Pin<Box<dyn Future<Output = Result<reqwest::Response, reqwest::Error>> + Send>>>;
@@ -34,10 +37,13 @@ pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, secs: SecVec) -> Strin
         return "Wrong m".to_string();
     }
 
-    let mut s = 0;
-    for sec in &*secs {
-        s += (sec.status().await == SecStatus::Healthy) as i32;
-    }
+    let s = join_all(secs.iter().map(|sec| sec.status()))
+        .await
+        .into_iter()
+        .filter(|status| *status == SecStatus::Healthy)
+        .count();
+
+    magenta_ln!("Found {} healthy secondaries", s);
 
     if inp.m - 1 > s.try_into().unwrap() {
         red_ln!("Not enough working secondaries, message is abandoned");
@@ -45,9 +51,7 @@ pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, secs: SecVec) -> Strin
     };
     let msg = inp.msg.clone();
 
-    if VERBOSE {
-        magenta_ln!("Started sending {}!", msg);
-    }
+    magenta_ln!("Started sending {}!", msg);
 
     let id: usize;
     {
@@ -59,9 +63,7 @@ pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, secs: SecVec) -> Strin
 
     let responces = quorum(inp.m, json_for_sec, secs).await;
 
-    if VERBOSE {
-        magenta_ln!("Enough secondaries reached, returning");
-    }
+    magenta_ln!("Enough secondaries reached, returning");
     for task in responces {
         spawn(task);
     }

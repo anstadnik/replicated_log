@@ -10,8 +10,6 @@ use tokio::sync::Mutex;
 
 use std::sync::Arc;
 
-const VERBOSE: bool = true;
-
 pub type MsgVec = Arc<Mutex<Vec<String>>>;
 pub type SecVec = Arc<Vec<Arc<Sec>>>;
 

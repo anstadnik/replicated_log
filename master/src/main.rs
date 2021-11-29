@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use master::{add_message, get_messages, sec::Sec, SecVec};
+use master::{SecVec, add_message, get::get_health, get_messages, sec::Sec};
 use tokio::sync::Mutex;
 use warp::Filter;
 
@@ -31,7 +31,12 @@ async fn main() {
         .and(secs_filter.clone())
         .then(get_messages);
 
-    let routes = add_items.or(get_items);
+    let get_health = warp::get()
+        .and(warp::path("health"))
+        .and(secs_filter.clone())
+        .then(get_health);
+
+    let routes = add_items.or(get_items).or(get_health);
 
     warp::serve(routes).run(([0, 0, 0, 0], 7878)).await;
 }
