@@ -49,13 +49,17 @@ async def msgs_listener():
 
     if request.method == "GET":
         print(f"Messages: {MESSAGES_DICT}")
+        if MESSAGES_DICT=={}:
+            return jsonify(isError=False, message=MESSAGES_DICT, statusCode=200), 200
+
         res = {}
         keys = sorted(MESSAGES_DICT.keys())
         shift = keys[0]
         for i, k in enumerate(keys):
             if k - i != shift:
                 break
-            res[i] = MESSAGES_DICT[i]
+            res[k] = MESSAGES_DICT[k]
+        print(res)
         return jsonify(isError=False, message=res, statusCode=200), 200
 
 @app.route("/health", methods=["GET"])
