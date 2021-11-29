@@ -36,7 +36,7 @@ async fn main() {
         .and(secs_filter.clone())
         .then(get_health);
 
-    let routes = add_items.or(get_items).or(get_health);
+    let routes = add_items.or(get_health).or(get_items);
 
     warp::serve(routes).run(([0, 0, 0, 0], 7878)).await;
 }
