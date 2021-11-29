@@ -24,7 +24,6 @@ async def msgs_listener():
             jsonify(isError=True, message=f"Use GET or POST methods.", statusCode=400),
             400,
         )
-    # time.sleep(random.randint(1, 10))
     try:
         time.sleep(int(os.environ["SLEEP_TIMEOUT"]))
     except (KeyError, ValueError):
@@ -49,7 +48,7 @@ async def msgs_listener():
 
     if request.method == "GET":
         print(f"Messages: {MESSAGES_DICT}")
-        if MESSAGES_DICT=={}:
+        if MESSAGES_DICT == {}:
             return jsonify(isError=False, message=MESSAGES_DICT, statusCode=200), 200
 
         res = {}
