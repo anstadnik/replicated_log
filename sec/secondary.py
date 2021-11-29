@@ -3,17 +3,19 @@ import logging
 import os
 import random
 import time
+import collections
+import json
 
 from flask import Flask, jsonify, request
 
-log = logging.getLogger("werkzeug")
-log.setLevel(logging.ERROR)
+# log = logging.getLogger("werkzeug")
+# log.setLevel(logging.ERROR)
 
 
 app = Flask(__name__)
 
-MESSAGES_LIST = []
-
+MESSAGES_DICT = {}
+# MESSAGES_LIST = []
 
 @app.route("/", methods=["GET", "POST"])
 async def msgs_listener():
@@ -35,7 +37,9 @@ async def msgs_listener():
         data = request.json
         if "msg" in data:
             print(f'added message {data["msg"]} with id {data["id"]}')
-            MESSAGES_LIST.append(data["msg"])
+            # here can be deduplication, check it
+            MESSAGES_DICT[int(data['id'])] = data['msg']
+            # MESSAGES_LIST.append(data["msg"])
             return (
                 jsonify(isError=False, message="Success", statusCode=200, data=data),
                 200,
@@ -44,12 +48,17 @@ async def msgs_listener():
             return jsonify(isError=True, message='Use json key "msg" for POST request.')
 
     if request.method == "GET":
-        print(f"Messages: {MESSAGES_LIST}")
-        # TODO: add deduplication & order sort here
-        return jsonify(isError=False, message=MESSAGES_LIST, statusCode=200), 200
+        print(f"Messages: {MESSAGES_DICT}")
+        res = {}
+        keys = sorted(MESSAGES_DICT.keys())
+        shift = keys[0]
+        for i, k in enumerate(keys):
+            if k - i != shift:
+                break
+            res[i] = MESSAGES_DICT[i]
+        return jsonify(isError=False, message=res, statusCode=200), 200
 
-
-@app.route("/health", methods=["GET", "POST"])
+@app.route("/health", methods=["GET"])
 async def heath():
     if request.method == 'GET':
         print(f"Health checker.")
