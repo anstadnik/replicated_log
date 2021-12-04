@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Instant, Duration};
 
 use tokio::sync::Mutex;
 
@@ -25,6 +25,7 @@ pub struct Sec {
     pub url: String,
     status: Mutex<Status>,
     client: reqwest::Client,
+    client_timeout: reqwest::Client,
 }
 
 impl Sec {
@@ -36,6 +37,7 @@ impl Sec {
                 prev_check: Instant::now(),
             }),
             client: reqwest::Client::new(),
+            client_timeout: reqwest::ClientBuilder::new().timeout(Duration::from_secs(6)).build().unwrap(),
         }
     }
 }

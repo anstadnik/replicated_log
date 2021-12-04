@@ -38,15 +38,19 @@ pub async fn add_message(inp: InpJsonProxy, msgs: MsgVec, secs: SecVec) -> Strin
     }
 
     if QUORUM {
-        let s = join_all(secs.iter().map(|sec| sec.status()))
+        let n_alive = join_all(secs.iter().map(|sec| sec.recheck_status()))
             .await
             .into_iter()
             .filter(|status| *status == SecStatus::Healthy)
             .count();
 
-        magenta_ln!("Found {} healthy secondaries", s);
+        magenta_ln!(
+            "Found {} healthy secondaries out of {}",
+            n_alive,
+            secs.len()
+        );
 
-        if inp.m - 1 > s.try_into().unwrap() {
+        if n_alive + 1 <= (secs.len() + 1) / 2 {
             red_ln!("Not enough working secondaries, message is abandoned");
             return "Not enough working secondaries, message is abandoned".to_string();
         };

@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use master::{SecVec, add_message, get::get_health, get_messages, sec::Sec};
+use futures::future::join_all;
+use master::{add_message, get::get_health, get_messages, sec::Sec, SecVec};
 use tokio::sync::Mutex;
 use warp::Filter;
 
-const SEC_URLS: [&'static str; 2] = ["http://secondary_1:5000", "http://secondary_2:5000"];
-// const SEC_URLS: [&'static str; 2] = ["http://localhost:5001", "http://localhost:5002"];
+// const SEC_URLS: [&'static str; 2] = ["http://secondary_1:5000", "http://secondary_2:5000"];
+const SEC_URLS: [&'static str; 2] = ["http://localhost:5001", "http://localhost:5002"];
 
 #[tokio::main]
 async fn main() {
@@ -16,6 +17,7 @@ async fn main() {
             .map(|url| Arc::new(Sec::new(url)))
             .collect(),
     );
+    join_all(secs.iter().map(|sec| sec.status())).await;
 
     let messages_filter = warp::any().map(move || msgs.clone());
     let secs_filter = warp::any().map(move || secs.clone());
